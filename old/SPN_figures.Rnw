@@ -1,0 +1,466 @@
+\documentclass[11pt]{amsart}
+\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                   % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                % Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\usepackage{hyperref}
+\usepackage{/Library/Frameworks/R.framework/Resources/share/texmf/Sweave}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+
+\title{Solidago Flower Arthropod Network Modeling and Analyses}
+\author{M.K. Lau}
+\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+
+\setcounter{tocdepth}{3}
+\tableofcontents
+
+
+\subsection*{Network Modelling Summary}
+\begin{enumerate}
+\item Species with abundances of two or less were removed (see
+  \hyperlink{rm.s&d}{above})
+\item The data were separated into two graphs, \textbf{Elk} and \textbf{No Elk}
+  exposure
+\item The p-values for the correlation tests were not corrected for
+  experimentwise error
+\end{enumerate}
+
+
+\subsection*{Meta-Data}
+\begin{itemize}
+\item Solidago Pollinator Network Analyses
+\item Project Director: Dave Smith
+\item Data Recorder: Ryan ? (undergrad assistant)
+\item NOTE FROM DAVE ABOUT PREVIOUS ANALYSES: I did not include population FS in my analysis for elk / no-elk.  Although, they could be useful data for looking at heritability or perhaps something else.  Also, for my analysis, I only included families with more than one rep (I also did an analysis including only families with 3 or more reps).  And, I removed singletons from the data.
+\end{itemize}
+
+
+
+\section{Analyses and Figures}
+\subsection{Package Dependencies}
+
+<<echo=false,results=hide>>=
+QAP <- FALSE #turn on = TRUE, off = FALSE qaptest
+QAP.results <- FALSE #hide QAP results
+
+@ 
+
+%%Check if igraph is loaded and remove if needed
+<<echo=false>>=
+if (any(unlist(.packages()) == 'igraph')){detach(package:igraph)}else{}
+
+@ 
+
+<<>>=
+require(ecodist)
+require(sna)
+require(vegan)
+require(xtable)
+require(bipartite) #bipartite causes problems with centralization because it loads igraph
+source('/Users/Aeolus/Documents/Active_Projects/CorNets/CorNets.R')
+
+@ 
+
+<<>>=
+source('/Users/Aeolus/Documents/Active_Projects/New_Functions/New_Functions.R')
+
+@ 
+
+\subsection{Data Summary}
+
+<<>>=
+data = read.csv('SolidagoPollinators2010.csv')
+summary(data)
+colnames(data)
+com = data[,14:ncol(data)]
+
+@ 
+
+\hypertarget{rm.s&d}{Remove singletons and doubletons.}
+
+<<>>=
+  ##remove singletons, doubletons
+  com = com[,apply(com,2,sum)>2]
+@
+
+
+<<>>=
+colnames(com)
+ds = rep(1,nrow(com)) #dummy species
+com. = cbind(com,ds) #Adjusted Bray-Curtis (Clarke et al. 2006)
+
+##population factor
+pop = data[,4]
+pop
+
+##family factor
+fam = data[,1]
+###FIX FAMILY TYPE THROPE == THORPE
+fam[fam == 'Thrope 5'] <- 'Thorpe 5'
+
+##elk factor
+elk = data[,5]
+elk[elk=='']='No'#make all empty elk entries No's
+
+@ 
+
+
+\subsection{Network Modeling}
+
+\subsection{Bipartite Graph Module Detection}
+<<>>=
+plotweb(com[order(apply(com,1,bin.sum)),order(apply(com,2,bin.sum))],empty=FALSE)
+com.visit <- apply(com,2,function(x) x/sum(x))
+com.visit <- com.visit[apply(com.visit,1,sum) != 0,]
+elk. <- elk[apply(com,1,sum) != 0]
+pop. <- pop[apply(com,1,sum) != 0]
+fam. <- fam[apply(com,1,sum) != 0]
+com.visit <- com.visit*10000
+com.visit <- round(com.visit,0)
+summary(com.visit)
+plotweb(com.visit,empty=FALSE)
+                                        #
+rownames(com.visit) <- paste('spp',(1:nrow(com.visit)),sep='')
+mod <- computeModules(com.visit)
+plotModuleWeb(mod,labsize=0.3)
+                                        #test for the effects of elk, population and family on modularity
+visit.mod <- recover.modules(mod)
+fisher.test(table(visit.mod[[1]],elk.),simulate.p.value=TRUE,B=9999)
+fisher.test(table(visit.mod[[1]],pop.),simulate.p.value=TRUE,B=9999)
+fisher.test(table(visit.mod[[1]],fam.),simulate.p.value=TRUE,B=9999)
+
+
+
+@ 
+
+<<echo=false>>=
+if (any(unlist(.packages()) == 'igraph')){detach(package:igraph)}else{}
+
+@ 
+
+
+\subsection*{Bipartite Individual-Pollinator Networks}
+<<>>=
+                                        #separate by elk browsing
+  com.bp <- list(com[elk == 'No',],com[elk == 'Yes',]) #bp = bipartite
+par(mfrow = c(1,2))
+plotweb(com.bp[[1]],method='normal')
+plotweb(com.bp[[2]],method='normal')
+
+
+@ 
+
+
+<<>>=
+##Network Modeling
+###JUST USE ELK AS A FACTOR
+com.list <- list()
+for (i in (1:length(unique(elk)))){
+com.list[[i]] <- com[elk == unique(elk)[i],]
+}
+
+names(com.list) <- unique(elk)
+
+net.list <- lapply(com.list,kendall.pairs,adj.method='fdr',alpha=0.05,p.adj=FALSE)
+
+@ 
+
+
+<<label=netcircle,include=false>>=
+  ##Graphs for dave
+par(mfrow=c(1,2),mar=c(2.4,1.3,1.5,1.3),oma=c(0.2,0.1,0.2,0.1),mar=c(2,1,2,1))
+names(net.list)=c('No Elk','Elk') #rename the network graphs
+net.list.reorder <- net.list[c(1,2)]
+com.list.reorder <- com.list[c(1,2)]
+for (i in (1:length(net.list))){
+      v.col=apply(com.list.reorder[[i]],2,sum); v.col[v.col != 0] = 'black' #color the present species
+      v.col[v.col == 0] <- 'lightgray' #color empty species
+      gplot(abs(net.list.reorder[[i]]),gmode='graph',vertex.cex=3,vertex.sides=100,vertex.col=v.col,edge.lwd=(abs(net.list.reorder[[i]])+1)^5,edge.col=gray(0.1)[1],vertex.border='grey',mode='circle',displaylabel=FALSE,label=1:ncol(net.list.reorder[[i]]),label.cex=0.75) 
+      title(main=names(net.list.reorder)[i],cex.main=2)
+    }
+
+@ 
+
+<<label=netfruch,include=false>>=
+  par(mfrow=c(1,2),mar=c(2.4,1.3,1.5,1.3),oma=c(0.2,0.1,0.2,0.1),mar=c(2,1,2,1))
+names(net.list)=c('No Elk','Elk') #rename the network graphs
+net.list.reorder <- net.list[c(1,2)]
+com.list.reorder <- com.list[c(1,2)]
+for (i in (1:length(net.list))){
+      v.col=apply(com.list.reorder[[i]],2,sum); v.col[v.col != 0] = 'black' #color the present species
+      v.col[v.col == 0] <- 'lightgray' #color empty species
+      gplot(abs(net.list.reorder[[i]]),gmode='graph',vertex.cex=3,vertex.sides=100,vertex.col=v.col,edge.lwd=(abs(net.list.reorder[[i]])+1)^5,edge.col=gray(0.1)[1],vertex.border='grey',displaylabels=TRUE,label=1:ncol(net.list.reorder[[i]]),label.cex=0.75)
+      #without titles
+      title(main=names(net.list.reorder)[i],cex.main=2)
+    }
+
+@ 
+
+
+
+\subsection*{Network Graphs}
+
+\begin{figure} 
+\begin{center} 
+<<label=net1,fig=TRUE,echo=false,width=10>>=
+<<netcircle>> 
+@ 
+\end{center} 
+\caption{Network graph for elk and no elk exposed solidago offspring
+  arranged in circle. Points represent species and lines represent
+  statistically significant Kendall's tau correlation
+  coefficients.} 
+\label{fig:one}
+\end{figure}
+
+\begin{figure} 
+\begin{center} 
+<<label=net2,fig=TRUE,echo=false,width=10>>=
+<<netfruch>> 
+@ 
+\end{center} 
+\caption{Network graph for elk and no elk exposed solidago offspring
+  arranged using a physical force algorithm. Points represent species and lines represent
+  statistically significant Kendall's tau correlation
+  coefficients.} 
+\label{fig:two}
+\end{figure}
+
+\subsection*{Corresponding Species Labels}
+<<echo=false>>=
+#legend
+paste(colnames(net.list.reorder[[1]]),1:length(colnames(net.list.reorder[[1]])),sep=' = ')
+@ 
+
+\subsection*{Network Structural Statistics}
+<<>>=
+#degree
+L <- unlist(lapply(net.list,function(x) bin.sum(x)/2))
+L
+#centralization
+unlist(lapply(net.list,function(x) centralization(x,degree)))
+#fragmentation
+unlist(lapply(net.list,fragmentation))
+#ranked species change
+ptc <- sort(apply(abs(net.list[[1]]-net.list[[2]]),1,sum),decreasing=TRUE)/sum(apply(abs(net.list[[1]]-net.list[[2]]),1,sum))*100 #percent change of the total change
+ptc
+@ 
+
+
+%%QAP TEST FOR STRUCTURAL DIFFERENCES
+<<echo=false,results=hide>>=
+if (QAP == TRUE){
+qap.in=array(dim=c(nrow(net.list[[1]]),ncol(net.list[[2]]),2))
+qap.in[,,1] <- net.list[[1]];qap.in[,,2] <- net.list[[2]]
+qap.S <- qaptest(qap.in,function(x,g1,g2) sum(abs(x[,,g1]-x[,,g2]))/2,reps=5000,g1=1,g2=2)
+}
+@ 
+
+<<echo=false>>=
+if (QAP.results == TRUE){
+summary(qap.S)
+}
+
+@ 
+
+
+
+%%QAP TEST FOR CENTRALIZATION
+<<echo=false,results=hide>>=
+if (QAP == TRUE){
+  qap.C <- qaptest(qap.in,function(x,g1,g2) centralization(x[,,g1],degree)-centralization(x[,,g2],degree),reps=5000,g1=1,g2=2)
+}
+@ 
+
+<<echo=false>>=
+if (QAP.results == TRUE){
+summary(qap.C)
+}
+@ 
+
+
+
+%% %%QAP TEST FOR FRAGMENTATION
+%% %%I can't figure out why this isn't working.
+%% <<echo=false,results=hide>>=
+%% if (QAP == TRUE){
+%% frag.qap <- function(y,g1,g2){fragmentation(y[,,g1]) - fragmentation(y[,,g2])}
+%% rm(x)
+%% qap.F <- qaptest(qap.in,frag.qap,reps=5000,g1=1,g2=2)
+%% }
+%% @ 
+
+\subsection*{Barplots of Network Statistics}
+
+<<label=bpL,include=false>>=
+#degree
+barplot(L,ylab='Number of Connections',col=1)
+@ 
+
+<<label=bpC,include=false>>=
+#centralization
+barplot(unlist(lapply(net.list,function(x) centralization(x,degree))),ylab='Centralization',col=1)
+
+@ 
+
+<<label=bpF,include=false>>=
+  ##fragmentation plot
+  barplot(unlist(lapply(net.list,fragmentation)),ylab='Fragmentation',col=1)
+
+@ 
+
+
+<<label=bpptc,include=false>>=
+#par(mar=c(12.1, 4.1, 4.1, 2.1))
+barplot(ptc,las=2,col='black',ylab='Percent Total Change',names=1:length(ptc))
+
+@ 
+
+\begin{figure} 
+\begin{center} 
+<<label=bpptc,fig=TRUE,echo=false>>=
+<<bpptc>> 
+@ 
+\end{center} 
+\caption{Barplot of the percent total change in connections (PTC)
+  comparing \textbf{Elk} and \textbf{No Elk} exposed solidago.} 
+\label{fig:six}
+\end{figure}
+
+\pagebreak
+
+\subsection*{Corresponding Species Labels for PTC Plot}
+<<echo=false>>=
+  names(ptc)
+@ 
+
+
+\begin{figure} 
+\begin{center} 
+<<label=bpL,fig=TRUE,echo=false>>=
+<<bpL>> 
+@ 
+\end{center} 
+\caption{Barplot of the number of connetions in each graph.} 
+\label{fig:three}
+\end{figure}
+
+\begin{figure} 
+\begin{center} 
+<<label=bpC,fig=TRUE,echo=false>>=
+<<bpC>> 
+@ 
+\end{center} 
+\caption{Barplot of the centralization of each graph.} 
+\label{fig:four}
+\end{figure}
+
+\begin{figure} 
+\begin{center} 
+<<label=bpF,fig=TRUE,echo=false>>=
+<<bpF>> 
+@ 
+\end{center} 
+\caption{Barplot of the fragmentation of each graph.} 
+\label{fig:five}
+\end{figure}
+
+
+
+%% <<fig=true>>=
+%% barplot(ptc,las=2,col='black',ylab='Percent Total Change')
+%% @ 
+
+
+%% ###Use family
+%% ##remove families that were replicated less than 4 times
+
+%% com.list <- list()
+%% for (i in (1:length(unique(fam)))){
+%% if (nrow(com[fam == unique(fam)[i],]) <= 7){
+%% }else{
+%%   com.list[[i]] <- com[fam == unique(fam)[i],]
+%%   names(com.list)[i] <- as.character(unique(fam)[i])
+%% }
+%% }
+
+%% com.list <- com.list[names(com.list) != ""] #remove families with observations less than 4
+
+%% net.list <- lapply(com.list,kendall.pairs,adj.method='fdr',p.adj=FALSE,alpha=0.05)
+%% table(unlist(net.list))
+
+%% ##Graphs for presenation
+%% quartz('',22,11.5)
+%% par(mfrow=c(2,4),mar=c(2.4,1.3,1.3,1.3),oma=c(0.1,0.1,0.1,0.1),bg='transparent',col.main='white',cex=2,mar=c(2,1,1,1))
+%%                                         #names(net.list)=c('No Elk','Elk') #rename the network graphs
+%% net.list.reorder <- net.list
+%% com.list.reorder <- com.list
+%% for (i in (1:length(net.list))){
+%%       v.col=apply(com.list.reorder[[i]],2,sum); v.col[v.col != 0] = 'lightblue' #color the present species
+%%             v.col[v.col == 0] <- 'black' #color empty species
+%%             gplot(abs(net.list.reorder[[i]]),gmode='graph',vertex.cex=3,vertex.sides=100,vertex.col=v.col,edge.lwd=0.35,edge.col=gray(0.9)[1],vertex.border='grey',mode='circle',displaylabels=FALSE,cex=2,main=names(net.list.reorder)[i]) #without titles
+%%     }
+
+
+%% ##Community Analyses
+%% adonis(com.~(pop/fam))
+
+%% ##relativize by species max
+%% com.sm = apply(com.,2,function(x) x/max(x))
+%% adonis(com.sm~pop/fam)
+
+%% ##relativize by site total
+%% com.st = t(apply(com.,1,function(x) x/sum(x)))
+%% rownames(com.st) = rownames(com.)
+%% adonis(com.st~pop/fam)
+
+%% ##presence absence data
+%% com..=com.; com..[com..!=0]=1
+%% adonis(com..~pop/fam)
+
+%% colnames(data)
+
+%% ##ordination
+%% d = vegdist(com.)
+%% nms = nmds(d,2,3,nits=10)
+%% nms. = nmds.min(nms,2)
+
+%% plot(nms.,col=as.numeric(pop))
+%% plot(nms.,col=as.numeric(elk))
+
+%% ##bipartite graph of whole garden
+
+%% rs = apply(com,1,bin.sum) #row connection sum
+%% cs = apply(com,2,bin.sum) #col connection sum
+
+%% com... = com[order(rs,decreasing=TRUE),order(cs,decreasing=TRUE)] #re-order based on the species abundances and total abundance of arthropods on individuals
+
+%% fam... = fam[order(rs,decreasing=TRUE)]
+%% pop... = pop[order(rs,decreasing=TRUE)]
+
+%% fam.col = rainbow(length(unique(as.numeric(fam...))))[as.numeric(fam...)]
+%% pop.col = rainbow(length(unique(as.numeric(pop...))))[as.numeric(pop...)]
+
+%% par(mfrow=c(2,1))
+%% plotweb(com...,method='normal',col.low=fam.col,bor.col.low=fam.col,low.lablength=0,text.rot=90)
+%% plotweb(com...,method='normal',col.low=pop.col,bor.col.low=pop.col,low.lablength=0,text.rot=90)
+
+
+%% ##remove the aphid
+
+%% .com = com...[,colnames(com...)!='Aphid']
+%% rs = apply(.com,1,bin.sum) #row connection sum
+%% cs = apply(.com,2,bin.sum) #col connection sum
+%% .com = .com[order(rs,decreasing=TRUE),order(cs,decreasing=TRUE)] #re-order based on the species abundances and total abundance of arthropods on individuals
+
+%% plotweb(.com,method='normal',col.low=rainbow(length(unique(as.numeric(fam))))[as.numeric(fam)],bor.col.low=rainbow(length(unique(as.numeric(fam))))[as.numeric(fam)],low.lablength=0)
+%% plotweb(.com,method='normal',col.low=rainbow(length(unique(as.numeric(pop))))[as.numeric(pop)],bor.col.low=rainbow(length(unique(as.numeric(pop))))[as.numeric(pop)],low.lablength=0)
+
+
+\end{document}  

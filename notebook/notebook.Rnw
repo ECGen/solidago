@@ -1,0 +1,117 @@
+%%%NOTE: for help with latex symbols look here http://mirror.unl.edu/ctan/info/symbols/comprehensive/symbols-a4.pdf.
+\documentclass[12pt]{article}
+\usepackage{color}
+\usepackage{cite}
+\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+%\usepackage{pdflscape}        %single page landscape
+                                %mode \begin{landscape} \end{landscape}
+\geometry{letterpaper}                   % ... or a4paper or a5paper or ... 
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{multicol} % \begin{multicols}{number of columns} \end{multicols}
+% \usepackage{lineno} %add lines numbers 
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{Sweave}
+\newcommand{\etal}{\textit{et al.}}
+\usepackage{hyperref}  %\hyperref[label_name]{''link text''}
+                       %\hyperlink{label}{anchor caption}
+                       %\hypertarget{label}{link caption}
+\hypersetup{linktocpage}
+\linespread{1.5}
+
+\title{Solidago Project 2: The Common Garden}
+\author{M.K. Lau}
+%\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+%\linenumbers %%add line numbers
+
+%\setcounter{tocdepth}{3}  %%activate to number sections
+%\tableofcontents
+
+%\thispagestyle{empty}
+%\setcounter{page}{0}
+%\setcounter{secnumdepth}{-1}  %activate to start numbering from one
+%on the second page
+
+
+\section{26 Jun 2014}
+\begin{itemize}
+\item Family-species networks will exhibit non-random structure (nestedness-modularity)
+\item Selection by herbivores contributes to variation that influences
+  network structure
+\end{itemize}
+
+\begin{verbatim}
+Here is the data.  Exclude the site labeled FS as I have excludied it
+in all other analyses.  Use the tab labeled Removed 1 cols and 0 rows.
+\end{verbatim}
+
+<<eval=false>>=
+library(bipartite)
+x <- read.csv('../data/Sol Common Garden 2010-Community.csv')
+                                        #exclude FS
+x <- x[x$Population!='FS',]
+x$Population <- factor(as.character(x$Population))
+x$Family <- factor(as.character(x$Family))
+summary(x)
+
+###Isolate community
+com <- x[,13:ncol(x)]
+pollinator <- dget(file='../data/pollinators.txt')
+com <- com[,pollinator==1]
+plotweb(com)
+###sum over individuals within Family for each population
+com <- apply(com,2,function(x,t) tapply(x,t,sum), t=x$Family)
+plotweb(com)
+elk.com <- tapply(as.character(x$Elk.),x$Family,function(x) x[1])
+elk.com[elk.com=="No"] <- 0;elk.com[elk.com=="Yes"] <- 1;elk.com <- as.numeric(elk.com)
+elk.com <- elk.com[order(apply(com,1,sum),decreasing=TRUE)]
+com <- com[order(apply(com,1,sum),decreasing=TRUE),
+           order(apply(com,2,sum),decreasing=TRUE)]
+plotweb(com,method='normal')
+###Test for modularity and nestedness
+nest.out <- nestedness(com)
+mods.r.out <- computeModules(apply(com,2,function(x) x/max(x)))
+###
+cbind(unlist(nest.out[11:18]))
+(nest.out[[4]]-unlist(nest.out[c(12,15,18)]))/unlist(nest.out[c(13,16,19)])
+my.col <- grey(elk.com)
+plotweb(com,method='normal',col.low=my.col,text.rot=90,labsize=1.5)
+
+###Analyze contribution of nodes to nestedness 
+###Or sensitivity analysis of structure with preferential node removal
+
+
+@ 
+
+
+%\subsection{}
+
+%% %%Figure construction
+%% <<echo=false,results=hide,label=fig1,include=false>>=
+%% @ 
+
+
+%% %%Figure plotting
+%% \begin{figure} 
+%% \begin{center} 
+%% <<label=fig1,fig=TRUE,echo=false>>=
+%% <<fig1>> 
+%% @ 
+%% \end{center} 
+%% \caption{}
+%% \label{fig:one}
+%% \end{figure}
+
+
+%% %%Activate for bibtex vibliography
+%% \cite{goossens93}
+%% \bibliographystyle{plain}
+%% \bibliography{/Users/Aeolus/Documents/bibtex/biblib}
+
+
+\end{document}  
+
+

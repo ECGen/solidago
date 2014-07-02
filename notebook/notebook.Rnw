@@ -36,12 +36,19 @@
 %on the second page
 
 
+\section{27 Jun 2014}
+
+Networks exhibit significant nestednessand modularity.
+See issue on github.
+
 \section{26 Jun 2014}
 \begin{itemize}
 \item Family-species networks will exhibit non-random structure (nestedness-modularity)
 \item Selection by herbivores contributes to variation that influences
   network structure
 \end{itemize}
+
+
 
 \begin{verbatim}
 Here is the data.  Exclude the site labeled FS as I have excludied it
@@ -64,10 +71,14 @@ com <- com[,pollinator==1]
 plotweb(com)
 ###sum over individuals within Family for each population
 com <- apply(com,2,function(x,t) tapply(x,t,sum), t=x$Family)
+com <- apply(com,2,function(x) x/max(x))
 plotweb(com)
 elk.com <- tapply(as.character(x$Elk.),x$Family,function(x) x[1])
 elk.com[elk.com=="No"] <- 0;elk.com[elk.com=="Yes"] <- 1;elk.com <- as.numeric(elk.com)
 elk.com <- elk.com[order(apply(com,1,sum),decreasing=TRUE)]
+fam.com <- x$Family
+fam.com <- as.character(fam.com)
+fam.com <- fam.com[order(apply(com,1,sum),decreasing=TRUE)]
 com <- com[order(apply(com,1,sum),decreasing=TRUE),
            order(apply(com,2,sum),decreasing=TRUE)]
 plotweb(com,method='normal')
@@ -79,8 +90,17 @@ cbind(unlist(nest.out[11:18]))
 (nest.out[[4]]-unlist(nest.out[c(12,15,18)]))/unlist(nest.out[c(13,16,19)])
 my.col <- grey(elk.com)
 plotweb(com,method='normal',col.low=my.col,text.rot=90,labsize=1.5)
+###
+plot(density(com[elk.com==0,][com[elk.com==0,]!=0]),main='',xlab='Interactions') #in
+lines(density(com[elk.com==1,][com[elk.com==1,]!=0]),lty=2) #out
+##total
+com.. <- apply(com,2,function(x,t) tapply(x,t,sum),t=fam.com)
+elk.com.. <- tapply(elk.com,fam.com,function(x) x[1])
+plot(density(com..[elk.com..==0,][com..[elk.com..==0,]!=0]),main='',xlab='Interactions') #in
+lines(density(com..[elk.com..==1,][com..[elk.com..==1,]!=0]),lty=2) #out
 
 ###Analyze contribution of nodes to nestedness 
+
 ###Or sensitivity analysis of structure with preferential node removal
 
 

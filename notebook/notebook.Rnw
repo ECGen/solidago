@@ -36,6 +36,81 @@
 %on the second page
 
 
+\section{2 Jul 2014}
+Results modularity and nestedness 
+
+<<>>=
+x <- read.csv('../data/Sol Common Garden 2010-Community.csv')
+x <- x[x$Population!='FS',]
+x$Population <- factor(as.character(x$Population))
+x$Family <- factor(as.character(x$Family))
+com <- x[,13:ncol(x)]
+pollinator <- dget(file='../data/pollinators.txt')
+com <- com[,pollinator==1]
+com <- apply(com,2,function(x,t) tapply(x,t,sum), t=x$Family)
+com <- apply(com,2,function(x) x/max(x))
+elk.com <- tapply(as.character(x$Elk.),x$Family,function(x) x[1])
+elk.com[elk.com=="No"] <- 0;elk.com[elk.com=="Yes"] <- 1;elk.com <- as.numeric(elk.com)
+elk.com <- elk.com[order(apply(com,1,sum),decreasing=TRUE)]
+fam.com <- x$Family
+fam.com <- as.character(fam.com)
+fam.com <- fam.com[order(apply(com,1,sum),decreasing=TRUE)]
+com <- com[order(apply(com,1,sum),decreasing=TRUE),
+           order(apply(com,2,sum),decreasing=TRUE)]
+library(bipartite)
+library(gplots)
+###nestedness?
+##overall nestedness
+x <- dget('../data/soli.mod');x[x!=0] <- 1;x <- x[apply(x,1,sum)!=0,apply(x,2,sum)!=0]
+## null <- dget('../data/null_set.rda')
+## nest.null <- lapply(null,function(x) nestedtemp(x)$statistic)
+nest.null <- dget('../data/nest_null_temp.rda')
+nest.obs <- nestedtemp(x)$statistic
+(nest.obs-mean(nest.null))/sd(nest.null)
+length(null[nest.null<=nest.obs])/length(nest.null)
+hist(nest.null,main='',xlab='Nestedness Temperature');abline(v=nest.obs,lty=2)
+opar <- par()
+par(mfrow=c(1,1),mai=opar$mai+c(4,0,0,0))
+plotweb(x,method='normal',col.low=grey(elk.com),text.rot=90)
+par(opar)
+
+##individual contribution to nestedness
+ncn <- dget('../data/ncn_out.rda')
+opar <- par()
+par(mfrow=c(1,2),mai=opar$mai+c(1.5,0,0,0))
+barplot(sort(ncn$ci,decreasing=TRUE),las=2)
+barplot(sort(ncn$cj,decreasing=TRUE),las=2)
+par(opar)
+##
+elk. <- c(elk.com[apply(com,1,sum)!=0],elk.com[apply(com,1,sum)==0])
+pop. <- substr(c(fam.com[apply(com,1,sum)!=0],fam.com[apply(com,1,sum)==0]),1,4)
+ci <- c(ncn$ci,0)
+plot(ci~factor(elk.))
+ci.mu <- tapply(ci,factor(elk.),mean)
+ci.se <- tapply(ci,factor(elk.),function(x) sd(x)/sqrt(length(x)))
+barplot2(ci.mu,plot.ci=TRUE,ci.u=ci.mu+ci.se,ci.l=ci.mu-ci.se,xlab='Elk (0=Absent,1=Present)',ylab='Contribution to Nestedness')
+summary(aov(ci~factor(elk.)))
+summary(aov(ci~factor(pop.)*factor(elk.)))
+
+plot(ci~apply(com,1,sum))
+abline(lm(ci~apply(com,1,sum)))
+summary(lm(ci~apply(com,1,sum)))
+
+###modularity not significant
+mods <- dget(file='../data/mod_like_obs_nul.rda')
+obs <- mods[1]
+null <- mods[-1]
+hist(null);abline(v=obs)
+(obs-mean(null))/sd(null)
+length(null[null<=obs])/length(null)
+
+@ 
+
+\begin{itemize}
+\item Running modularity null model analysis
+\item Running nestedness contribution analysis
+\end{itemize}
+
 \section{27 Jun 2014}
 
 Networks exhibit significant nestednessand modularity.

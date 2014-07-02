@@ -1,10 +1,11 @@
 ###Testing the modularity of the solidago network
 ###MKLau 2 Jul 2014
 
-#load bipartite
-null.gen <- TRUE
+#load packages
+null.gen <- FALSE
 nsim <- 1000
 require(bipartite)
+require(methods)
 
 #load model 
 x <- dget('../data/soli.mod')

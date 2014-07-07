@@ -40,6 +40,7 @@
 Results modularity and nestedness 
 
 <<>>=
+
 x <- read.csv('../data/Sol Common Garden 2010-Community.csv')
 x <- x[x$Population!='FS',]
 x$Population <- factor(as.character(x$Population))
@@ -59,10 +60,19 @@ com <- com[order(apply(com,1,sum),decreasing=TRUE),
            order(apply(com,2,sum),decreasing=TRUE)]
 library(bipartite)
 library(gplots)
+###modularity not significant
+mods <- dget(file='../data/mod_like_obs_nul.rda')
+obs <- mods[1]
+null <- mods[-1]
+hist(null);abline(v=obs)
+(obs-mean(null))/sd(null)
+length(null[null<=obs])/length(null)
+
+
 ###nestedness?
 ##overall nestedness
 x <- dget('../data/soli.mod');x[x!=0] <- 1;x <- x[apply(x,1,sum)!=0,apply(x,2,sum)!=0]
-## null <- dget('../data/null_set.rda')
+null <- dget('../data/null_set.rda')
 ## nest.null <- lapply(null,function(x) nestedtemp(x)$statistic)
 nest.null <- dget('../data/nest_null_temp.rda')
 nest.obs <- nestedtemp(x)$statistic
@@ -92,17 +102,32 @@ barplot2(ci.mu,plot.ci=TRUE,ci.u=ci.mu+ci.se,ci.l=ci.mu-ci.se,xlab='Elk (0=Absen
 summary(aov(ci~factor(elk.)))
 summary(aov(ci~factor(pop.)*factor(elk.)))
 
+##
 plot(ci~apply(com,1,sum))
 abline(lm(ci~apply(com,1,sum)))
 summary(lm(ci~apply(com,1,sum)))
 
-###modularity not significant
-mods <- dget(file='../data/mod_like_obs_nul.rda')
-obs <- mods[1]
-null <- mods[-1]
-hist(null);abline(v=obs)
-(obs-mean(null))/sd(null)
-length(null[null<=obs])/length(null)
+###network with nodes scaled by contribution to nestedness
+opar <- par()
+par(mfrow=c(1,1),mai=opar$mai+c(4,0,0,0))
+plotweb(x[order(ncn$ci,decreasing=TRUE),order(ncn$cj,decreasing=TRUE)],
+        method='normal',col.low=grey(elk.com),text.rot=90,col.high='grey',bor.col.high='grey')
+par(opar)
+
+par(mfrow=c(1,2))
+hist((ncn$ci),main='Sites',xlab='Contribution to Nestedness')
+hist((ncn$cj),main='Species',xlab='Contribution to Nestedness')
+##separate elk, no elk
+par(mfrow=c(1,1))
+plot(density(ci[elk.==0]),xlab='Contribution to Nestedness',xlim=range(ci));abline(v=mean(ci[elk.==0]))
+lines(density(ci[elk.==1]),lty=2);abline(v=mean(ci[elk.==1]),lty=2)
+legend('topright',legend=c('No Elk','Elk'),lty=c(1,2))
+
+##Contribution to nestedness was significantly correlated with degree
+deg <- apply(x,1,function(x) sum(sign(x)))
+plot(ncn$ci~deg,pch=19,col=elk.[-length(elk.)]+1)
+abline(lm(ncn$ci~deg))
+cor.test(ncn$ci,deg)
 
 @ 
 

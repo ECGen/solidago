@@ -25,7 +25,8 @@ out <- 0
   for (k in 1:nsim){
     print(paste(i,k))
     null <- x
-    null[i,] <- sample(x[i,])
+    y <- commsimulator(x,method='r1',thin=100)
+    null[i,] <- y[i,]
     out[k] <- nestedtemp(null)$statistic
   }
   Nstar.i[[i]] <- out
@@ -37,7 +38,8 @@ out <- 0
   for (k in 1:nsim){
     print(paste(j,k))
     null <- x
-    null[,j] <- sample(x[,j])
+    y <- commsimulator(x,method='r1',thin=100)
+    null[,j] <- y[,j]
     out[k] <- nestedtemp(null)$statistic
   }
   Nstar.j[[j]] <- out

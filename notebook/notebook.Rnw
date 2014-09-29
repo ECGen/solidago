@@ -107,6 +107,12 @@ plot(ci~apply(com,1,sum))
 abline(lm(ci~apply(com,1,sum)))
 summary(lm(ci~apply(com,1,sum)))
 
+plot(ci[elk.==0]~apply(com,1,function(x) sum(sign(x)))[elk.==0],ylim=range(ci),xlab='Degree',ylab='Contribution to Nestedness')
+abline(lm(ci[elk.==0]~apply(com,1,function(x) sum(sign(x)))[elk.==0]),lty=2)
+points(ci[elk.==1]~apply(com,1,function(x) sum(sign(x)))[elk.==1],pch=19)
+abline(lm(ci[elk.==1]~apply(com,1,function(x) sum(sign(x)))[elk.==1]))
+summary(lm(ci~elk.*apply(com,1,function(x) sum(sign(x)))))
+
 ###network with nodes scaled by contribution to nestedness
 opar <- par()
 par(mfrow=c(1,1),mai=opar$mai+c(4,0,0,0))
@@ -130,6 +136,8 @@ abline(lm(ncn$ci~deg))
 cor.test(ncn$ci,deg)
 
 @ 
+
+
 
 \begin{itemize}
 \item Running modularity null model analysis
